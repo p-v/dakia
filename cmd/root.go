@@ -49,6 +49,12 @@ func Execute() {
 			fmt.Println("Failed to retrieve command", err)
 			os.Exit(1)
 		}
-		fmt.Println(string(command))
+		output, err := app.ExecuteCommand(string(command))
+		if err != nil {
+			fmt.Println(err.Error())
+			os.Exit(1)
+		}
+
+		fmt.Println(string(output))
 	}
 }
