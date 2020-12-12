@@ -18,6 +18,7 @@ func Execute() {
 	}
 
 	isSaveMode := allArgs[0] == "-s"
+	isFindMode := allArgs[0] == "-f"
 
 	if isSaveMode {
 		hasCommand := false
@@ -42,6 +43,26 @@ func Execute() {
 			os.Exit(1)
 		}
 		fmt.Println("Command stored successfully")
+	} else if isFindMode {
+		commandDetail, err := app.ListCommands(allArgs[1:])
+		if err != nil {
+			fmt.Println("Failed to list commands", err)
+			os.Exit(1)
+		}
+
+		commands := commandDetail.Commands
+		executable := commandDetail.Executable
+
+		if executable != "" {
+			fmt.Println("Execuctable: ", executable)
+			fmt.Println("===================")
+		}
+
+		fmt.Println("Available Commands:")
+		fmt.Println("===================")
+		for _, command := range commands {
+			fmt.Println(command)
+		}
 	} else {
 		// Happy case
 		command, err := app.GetCommand(allArgs[:])

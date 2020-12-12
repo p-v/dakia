@@ -6,6 +6,12 @@ import (
 	"os/user"
 )
 
+// CommandDetail struct type for commands and executable
+type CommandDetail struct {
+	Commands   []string
+	Executable string
+}
+
 // StoreCommand stores the provided command
 func StoreCommand(args []string, command string) error {
 	usr, err := user.Current()
@@ -38,7 +44,7 @@ func StoreCommand(args []string, command string) error {
 			}
 
 			if index == len(args)-1 {
-				err := prevBucket.Put([]byte("command"), []byte(command))
+				err := prevBucket.Put([]byte("__command"), []byte(command))
 				if err != nil {
 					return err
 				}
@@ -80,7 +86,7 @@ func GetCommand(args []string) (command []byte, err error) {
 			}
 
 			if index == len(args)-1 {
-				command = prevBucket.Get([]byte("command"))
+				command = prevBucket.Get([]byte("__command"))
 			}
 		}
 
@@ -95,4 +101,56 @@ func GetCommand(args []string) (command []byte, err error) {
 	}
 
 	return command, err
+}
+
+// ListCommands list all the commands based on the input
+func ListCommands(args []string) (*CommandDetail, error) {
+	db, err := bolt.Open("/Users/pverma/.dakia", 0600, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	commands := make([]string, 0)
+	executable := ""
+	err = db.View(func(tx *bolt.Tx) error {
+		if len(args) > 0 {
+			var lastBucket *bolt.Bucket
+			for _, bucketName := range args {
+				if lastBucket == nil {
+					bucket := tx.Bucket([]byte(bucketName))
+					lastBucket = bucket
+					if bucket == nil {
+						return errors.New("Cannot find command")
+					}
+				} else {
+					bucket := lastBucket.Bucket([]byte(bucketName))
+					lastBucket = bucket
+					if bucket == nil {
+						return errors.New("Cannot find command")
+					}
+				}
+			}
+
+			return lastBucket.ForEach(func(k, v []byte) error {
+				command := string(k)
+				if command != "__command" {
+					commands = append(commands, string(k))
+				} else {
+					executable = string(v)
+				}
+				return nil
+			})
+		}
+		return tx.ForEach(func(name []byte, _ *bolt.Bucket) error {
+			commands = append(commands, string(name))
+			return nil
+		})
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &CommandDetail{commands, executable}, nil
 }
